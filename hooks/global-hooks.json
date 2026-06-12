@@ -1,0 +1,98 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/scott/work/codex-task-light/scripts/hook_entry.py",
+            "statusMessage": "Updating CX traffic light"
+          }
+        ]
+      }
+    ]
+  }
+}

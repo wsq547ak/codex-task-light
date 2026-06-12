@@ -1,0 +1,23 @@
+{
+  "name": "codex-task-light",
+  "version": "0.1.0",
+  "description": "A Codex plugin that shows turn state in the macOS menu bar.",
+  "author": {
+    "name": "Local developer"
+  },
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Task Light",
+    "shortDescription": "Show a red, yellow, or green menu bar light for Codex activity.",
+    "longDescription": "Codex Traffic Light uses bundled Codex Hooks plus a small macOS status item app to show when Codex is running, waiting, failing, or completing a turn.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [
+      "Bundled Codex Hooks",
+      "macOS menu bar indicator",
+      "Turn completion and error signaling"
+    ],
+    "defaultPrompt": "Help me install and use Codex Task Light."
+  }
+}

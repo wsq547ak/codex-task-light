@@ -1,0 +1,98 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/hook_entry.py\"",
+            "statusMessage": "Updating traffic light"
+          }
+        ]
+      }
+    ]
+  }
+}
