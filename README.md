@@ -1,6 +1,7 @@
 # Codex Task Light
 
 `Codex Task Light` 是一个给 `Codex` 用的 macOS 菜单栏状态灯工具。
+<img width="137" height="41" alt="截屏2026-06-12 23 44 27" src="https://github.com/user-attachments/assets/37e8b29b-e3ec-4a0f-b286-99d32b0272d4" />
 
 它的作用是：
 
