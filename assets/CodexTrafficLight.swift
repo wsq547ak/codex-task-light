@@ -22,21 +22,19 @@ struct ResolvedIndicatorState {
 
 struct DisplayPreferences: Codable {
     let display_mode: String
+    let always_on_top: Bool
 }
 
 enum DisplayMode: String, CaseIterable {
     case menuBar
     case floating
-    case alwaysOnTop
 
     var title: String {
         switch self {
         case .menuBar:
-            return "Menu Bar"
+            return "状态栏"
         case .floating:
-            return "Floating Window"
-        case .alwaysOnTop:
-            return "Always on Top"
+            return "悬浮窗"
         }
     }
 }
@@ -78,18 +76,19 @@ final class FloatingIndicatorView: NSView {
 final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private let menu = NSMenu()
-    private let titleItem = NSMenuItem(title: "Codex Traffic Light", action: nil, keyEquivalent: "")
-    private let detailItem = NSMenuItem(title: "Waiting for state", action: nil, keyEquivalent: "")
-    private let sessionItem = NSMenuItem(title: "Session: -", action: nil, keyEquivalent: "")
-    private let modeHeaderItem = NSMenuItem(title: "Display Mode", action: nil, keyEquivalent: "")
+    private let titleItem = NSMenuItem(title: "Codex 状态灯", action: nil, keyEquivalent: "")
+    private let detailItem = NSMenuItem(title: "等待状态中", action: nil, keyEquivalent: "")
+    private let sessionItem = NSMenuItem(title: "会话：-", action: nil, keyEquivalent: "")
+    private let modeHeaderItem = NSMenuItem(title: "显示方式", action: nil, keyEquivalent: "")
     private let menuBarModeItem = NSMenuItem(title: DisplayMode.menuBar.title, action: #selector(selectMenuBarMode), keyEquivalent: "")
     private let floatingModeItem = NSMenuItem(title: DisplayMode.floating.title, action: #selector(selectFloatingMode), keyEquivalent: "")
-    private let alwaysOnTopModeItem = NSMenuItem(title: DisplayMode.alwaysOnTop.title, action: #selector(selectAlwaysOnTopMode), keyEquivalent: "")
+    private let alwaysOnTopItem = NSMenuItem(title: "窗口置顶", action: #selector(toggleAlwaysOnTop), keyEquivalent: "")
     private var refreshTimer: Timer?
     private var missingCodexChecks = 0
     private var cachedLifecycleEvent: CodexLifecycleEvent?
     private var lastLifecycleRefresh = Date.distantPast
     private var currentDisplayMode: DisplayMode = .menuBar
+    private var isAlwaysOnTop = true
     private var floatingPanel: NSPanel?
     private var floatingIndicatorView: FloatingIndicatorView?
 
@@ -124,7 +123,7 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
 
         menuBarModeItem.target = self
         floatingModeItem.target = self
-        alwaysOnTopModeItem.target = self
+        alwaysOnTopItem.target = self
 
         menu.addItem(titleItem)
         menu.addItem(detailItem)
@@ -133,10 +132,10 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         menu.addItem(modeHeaderItem)
         menu.addItem(menuBarModeItem)
         menu.addItem(floatingModeItem)
-        menu.addItem(alwaysOnTopModeItem)
+        menu.addItem(alwaysOnTopItem)
         menu.addItem(.separator())
         menu.addItem(
-            withTitle: "Quit",
+            withTitle: "退出",
             action: #selector(quitApp),
             keyEquivalent: "q"
         )
@@ -150,8 +149,10 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         setDisplayMode(.floating)
     }
 
-    @objc private func selectAlwaysOnTopMode() {
-        setDisplayMode(.alwaysOnTop)
+    @objc private func toggleAlwaysOnTop() {
+        isAlwaysOnTop.toggle()
+        savePreferences()
+        applyDisplayMode()
     }
 
     @objc private func quitApp() {
@@ -180,13 +181,17 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         let resolvedState = resolveIndicatorState(from: state)
         titleItem.title = resolvedState.label
         detailItem.title = resolvedState.detail
-        sessionItem.title = "Session: \(state.session_id ?? "-")"
+        sessionItem.title = "会话：\(state.session_id ?? "-")"
         updateIndicators(color: resolvedState.indicatorColor)
     }
 
     private func resolveIndicatorState(from state: TrafficLightState) -> ResolvedIndicatorState {
+        let stateDate = parseDate(state.updated_at)
+
         if state.color != "red" && state.color != "blue",
-           let lifecycleEvent = latestLifecycleEvent() {
+           let lifecycleEvent = latestLifecycleEvent(),
+           let stateDate,
+           lifecycleEvent.timestamp > stateDate {
             switch lifecycleEvent.type {
             case "task_started":
                 return ResolvedIndicatorState(
@@ -328,7 +333,7 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         }
 
         currentDisplayMode = mode
-        saveDisplayMode(mode)
+        savePreferences()
         applyDisplayMode()
     }
 
@@ -341,17 +346,15 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
             ensureStatusItem()
         case .floating:
             removeStatusItem()
-            ensureFloatingPanel(level: .normal)
-        case .alwaysOnTop:
-            removeStatusItem()
-            ensureFloatingPanel(level: .statusBar)
+            ensureFloatingPanel(level: isAlwaysOnTop ? .statusBar : .normal)
         }
     }
 
     private func updateDisplayModeMenuChecks() {
         menuBarModeItem.state = currentDisplayMode == .menuBar ? .on : .off
         floatingModeItem.state = currentDisplayMode == .floating ? .on : .off
-        alwaysOnTopModeItem.state = currentDisplayMode == .alwaysOnTop ? .on : .off
+        alwaysOnTopItem.state = isAlwaysOnTop ? .on : .off
+        alwaysOnTopItem.isEnabled = currentDisplayMode == .floating
     }
 
     private func ensureStatusItem() {
@@ -426,14 +429,19 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
             let preferences = try? JSONDecoder().decode(DisplayPreferences.self, from: data),
             let mode = DisplayMode(rawValue: preferences.display_mode)
         else {
+            isAlwaysOnTop = true
             return .menuBar
         }
 
+        isAlwaysOnTop = preferences.always_on_top
         return mode
     }
 
-    private func saveDisplayMode(_ mode: DisplayMode) {
-        let preferences = DisplayPreferences(display_mode: mode.rawValue)
+    private func savePreferences() {
+        let preferences = DisplayPreferences(
+            display_mode: currentDisplayMode.rawValue,
+            always_on_top: isAlwaysOnTop
+        )
         guard let data = try? JSONEncoder().encode(preferences) else {
             return
         }
