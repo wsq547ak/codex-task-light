@@ -433,17 +433,11 @@ launchctl kickstart -k "gui/$(id -u)/com.scott.codex-task-light.monitor"
 
 ## 设计说明
 
-这个项目参考了 `edge-tts` 那种“轻入口脚本 + 明确核心逻辑”的组织思路：
 
 - 入口薄
 - 状态逻辑集中
 - 可测试
 - 不依赖额外 Python GUI 框架
-
-不过需要说明：
-
-- `edge-tts` 仓库本身并没有现成的 `Codex Hooks` 配置
-- 这里参考的是它的项目组织方式，不是直接复用某个现成 hook 文件
 
 ## 适合谁用
 
