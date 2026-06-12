@@ -55,6 +55,14 @@
 
 另外，顶部图标现在只显示一个圆点，不再显示 `CX` 文字，这样在菜单栏内容较多时更容易保留下来。
 
+点击状态灯后，还可以在菜单里切换显示方式：
+
+- `Menu Bar`
+- `Floating Window`
+- `Always on Top`
+
+三种模式是单选关系，当前选择会写入 `./.runtime/preferences.json`，下次启动时自动恢复。
+
 ## 项目结构
 
 - `.codex-plugin/plugin.json`：插件清单
@@ -225,6 +233,12 @@ launchctl kickstart -k "gui/$(id -u)/com.scott.codex-task-light.monitor"
 3. 在任意工作区开始任务
 4. 状态灯根据任务状态自动变色
 
+如果你切到了 `Floating Window` 或 `Always on Top`：
+
+- 菜单栏圆点会隐藏
+- 屏幕上会出现一个可拖动的小灯窗口
+- 点击这个小灯窗口，也能弹出同一套菜单切换显示模式
+
 ## 推荐安装顺序
 
 第一次使用，推荐按这个顺序来：
@@ -268,6 +282,13 @@ launchctl kickstart -k "gui/$(id -u)/com.scott.codex-task-light.monitor"
 - 在任务执行过程中主动停止
 - 菜单栏应切回 `🟢`
 
+### 显示模式切换
+
+- 点击当前状态灯
+- 在 `Display Mode` 下选择 `Menu Bar`、`Floating Window` 或 `Always on Top`
+- 选择后应立即切换到对应显示方式
+- 重启 `Codex` 或状态灯 app 后，应恢复上次选择
+
 ## 当前实现细节
 
 当前状态判定逻辑大致如下：
@@ -288,6 +309,12 @@ launchctl kickstart -k "gui/$(id -u)/com.scott.codex-task-light.monitor"
 
 - 任务真正开始时，更稳地切黄灯
 - 用户手动停止时，也能从黄灯切回绿灯
+
+显示层则支持 3 种单选模式：
+
+- `Menu Bar`：显示在 macOS 菜单栏
+- `Floating Window`：显示普通可拖动悬浮窗，可能被其他窗口遮住
+- `Always on Top`：显示可拖动置顶悬浮窗，尽量保持在其他窗口上方
 
 ## 常见问题
 
@@ -361,6 +388,11 @@ open ./.runtime/CodexTrafficLight.app
 - 这样可以显著提高可见性
 - 但如果 macOS 菜单栏被系统级别严重挤压，任何第三方状态项仍可能被系统折叠
 - 这已经是应用层面比较稳妥的做法
+
+如果你经常录屏或菜单栏很拥挤，建议直接切到：
+
+- `Floating Window`
+- 或 `Always on Top`
 
 ## 开发与验证
 

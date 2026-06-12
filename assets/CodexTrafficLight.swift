@@ -20,28 +20,95 @@ struct ResolvedIndicatorState {
     let indicatorColor: NSColor
 }
 
+struct DisplayPreferences: Codable {
+    let display_mode: String
+}
+
+enum DisplayMode: String, CaseIterable {
+    case menuBar
+    case floating
+    case alwaysOnTop
+
+    var title: String {
+        switch self {
+        case .menuBar:
+            return "Menu Bar"
+        case .floating:
+            return "Floating Window"
+        case .alwaysOnTop:
+            return "Always on Top"
+        }
+    }
+}
+
+final class FloatingIndicatorView: NSView {
+    var indicatorColor: NSColor = .systemRed {
+        didSet {
+            needsDisplay = true
+        }
+    }
+
+    var clickHandler: (() -> Void)?
+
+    override var isFlipped: Bool {
+        true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let backgroundRect = bounds.insetBy(dx: 1, dy: 1)
+        NSColor(calibratedWhite: 0.08, alpha: 0.9).setFill()
+        NSBezierPath(roundedRect: backgroundRect, xRadius: 12, yRadius: 12).fill()
+
+        let dotSize: CGFloat = 18
+        let dotRect = NSRect(
+            x: (bounds.width - dotSize) / 2,
+            y: (bounds.height - dotSize) / 2,
+            width: dotSize,
+            height: dotSize
+        )
+        indicatorColor.setFill()
+        NSBezierPath(ovalIn: dotRect).fill()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        clickHandler?()
+    }
+}
+
 final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusBar.system.thickness)
+    private var statusItem: NSStatusItem?
     private let menu = NSMenu()
     private let titleItem = NSMenuItem(title: "Codex Traffic Light", action: nil, keyEquivalent: "")
     private let detailItem = NSMenuItem(title: "Waiting for state", action: nil, keyEquivalent: "")
     private let sessionItem = NSMenuItem(title: "Session: -", action: nil, keyEquivalent: "")
+    private let modeHeaderItem = NSMenuItem(title: "Display Mode", action: nil, keyEquivalent: "")
+    private let menuBarModeItem = NSMenuItem(title: DisplayMode.menuBar.title, action: #selector(selectMenuBarMode), keyEquivalent: "")
+    private let floatingModeItem = NSMenuItem(title: DisplayMode.floating.title, action: #selector(selectFloatingMode), keyEquivalent: "")
+    private let alwaysOnTopModeItem = NSMenuItem(title: DisplayMode.alwaysOnTop.title, action: #selector(selectAlwaysOnTopMode), keyEquivalent: "")
     private var refreshTimer: Timer?
     private var missingCodexChecks = 0
     private var cachedLifecycleEvent: CodexLifecycleEvent?
     private var lastLifecycleRefresh = Date.distantPast
+    private var currentDisplayMode: DisplayMode = .menuBar
+    private var floatingPanel: NSPanel?
+    private var floatingIndicatorView: FloatingIndicatorView?
 
     private let pluginData: URL = {
         if let path = ProcessInfo.processInfo.environment["PLUGIN_DATA"] {
             return URL(fileURLWithPath: path)
         }
 
-        // When launched from the built app bundle, keep state next to the app.
         return Bundle.main.bundleURL.deletingLastPathComponent()
     }()
 
+    private var preferencesURL: URL {
+        pluginData.appendingPathComponent("preferences.json")
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenu()
+        currentDisplayMode = loadDisplayMode()
+        applyDisplayMode()
         refreshState()
 
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
@@ -53,19 +120,38 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         titleItem.isEnabled = false
         detailItem.isEnabled = false
         sessionItem.isEnabled = false
+        modeHeaderItem.isEnabled = false
+
+        menuBarModeItem.target = self
+        floatingModeItem.target = self
+        alwaysOnTopModeItem.target = self
+
         menu.addItem(titleItem)
         menu.addItem(detailItem)
         menu.addItem(sessionItem)
+        menu.addItem(.separator())
+        menu.addItem(modeHeaderItem)
+        menu.addItem(menuBarModeItem)
+        menu.addItem(floatingModeItem)
+        menu.addItem(alwaysOnTopModeItem)
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit",
             action: #selector(quitApp),
             keyEquivalent: "q"
         )
+    }
 
-        statusItem.menu = menu
-        statusItem.button?.toolTip = "CX Task Light"
-        updateButton(color: .systemRed)
+    @objc private func selectMenuBarMode() {
+        setDisplayMode(.menuBar)
+    }
+
+    @objc private func selectFloatingMode() {
+        setDisplayMode(.floating)
+    }
+
+    @objc private func selectAlwaysOnTopMode() {
+        setDisplayMode(.alwaysOnTop)
     }
 
     @objc private func quitApp() {
@@ -95,7 +181,7 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         titleItem.title = resolvedState.label
         detailItem.title = resolvedState.detail
         sessionItem.title = "Session: \(state.session_id ?? "-")"
-        updateButton(color: resolvedState.indicatorColor)
+        updateIndicators(color: resolvedState.indicatorColor)
     }
 
     private func resolveIndicatorState(from state: TrafficLightState) -> ResolvedIndicatorState {
@@ -127,29 +213,13 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
 
         switch state.color {
         case "green":
-            return ResolvedIndicatorState(
-                label: state.label,
-                detail: state.detail,
-                indicatorColor: .systemGreen
-            )
+            return ResolvedIndicatorState(label: state.label, detail: state.detail, indicatorColor: .systemGreen)
         case "blue":
-            return ResolvedIndicatorState(
-                label: state.label,
-                detail: state.detail,
-                indicatorColor: .systemBlue
-            )
+            return ResolvedIndicatorState(label: state.label, detail: state.detail, indicatorColor: .systemBlue)
         case "yellow":
-            return ResolvedIndicatorState(
-                label: state.label,
-                detail: state.detail,
-                indicatorColor: .systemYellow
-            )
+            return ResolvedIndicatorState(label: state.label, detail: state.detail, indicatorColor: .systemYellow)
         default:
-            return ResolvedIndicatorState(
-                label: state.label,
-                detail: state.detail,
-                indicatorColor: .systemRed
-            )
+            return ResolvedIndicatorState(label: state.label, detail: state.detail, indicatorColor: .systemRed)
         }
     }
 
@@ -162,7 +232,6 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
 
         let sessionsRoot = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".codex/sessions", isDirectory: true)
-
         let calendar = Calendar.current
         let candidateDates = [Date(), calendar.date(byAdding: .day, value: -1, to: Date())].compactMap { $0 }
 
@@ -170,11 +239,7 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
 
         for date in candidateDates {
             let components = calendar.dateComponents([.year, .month, .day], from: date)
-            guard
-                let year = components.year,
-                let month = components.month,
-                let day = components.day
-            else {
+            guard let year = components.year, let month = components.month, let day = components.day else {
                 continue
             }
 
@@ -195,9 +260,9 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
                 for line in contents.split(separator: "\n") {
                     guard
                         line.contains("\"type\":\"event_msg\""),
-                        (line.contains("\"type\":\"task_started\"") ||
-                            line.contains("\"type\":\"task_complete\"") ||
-                            line.contains("\"type\":\"turn_aborted\"")),
+                        (line.contains("\"type\":\"task_started\"")
+                            || line.contains("\"type\":\"task_complete\"")
+                            || line.contains("\"type\":\"turn_aborted\"")),
                         let data = line.data(using: .utf8),
                         let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                         let timestampText = object["timestamp"] as? String,
@@ -229,13 +294,20 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         return formatter.date(from: text) ?? fallbackFormatter.date(from: text)
     }
 
-    private func updateButton(color: NSColor) {
-        guard let button = statusItem.button else {
+    private func updateIndicators(color: NSColor) {
+        updateStatusItem(color: color)
+        floatingIndicatorView?.indicatorColor = color
+    }
+
+    private func updateStatusItem(color: NSColor) {
+        guard let button = statusItem?.button else {
             return
         }
+
         button.title = ""
         button.image = makeDotImage(color: color)
         button.imagePosition = .imageOnly
+        button.toolTip = "CX Task Light"
     }
 
     private func makeDotImage(color: NSColor) -> NSImage {
@@ -250,9 +322,128 @@ final class CodexTrafficLightApp: NSObject, NSApplicationDelegate {
         return image
     }
 
+    private func setDisplayMode(_ mode: DisplayMode) {
+        guard currentDisplayMode != mode else {
+            return
+        }
+
+        currentDisplayMode = mode
+        saveDisplayMode(mode)
+        applyDisplayMode()
+    }
+
+    private func applyDisplayMode() {
+        updateDisplayModeMenuChecks()
+
+        switch currentDisplayMode {
+        case .menuBar:
+            destroyFloatingPanel()
+            ensureStatusItem()
+        case .floating:
+            removeStatusItem()
+            ensureFloatingPanel(level: .normal)
+        case .alwaysOnTop:
+            removeStatusItem()
+            ensureFloatingPanel(level: .statusBar)
+        }
+    }
+
+    private func updateDisplayModeMenuChecks() {
+        menuBarModeItem.state = currentDisplayMode == .menuBar ? .on : .off
+        floatingModeItem.state = currentDisplayMode == .floating ? .on : .off
+        alwaysOnTopModeItem.state = currentDisplayMode == .alwaysOnTop ? .on : .off
+    }
+
+    private func ensureStatusItem() {
+        if statusItem == nil {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusBar.system.thickness)
+            item.menu = menu
+            statusItem = item
+        }
+    }
+
+    private func removeStatusItem() {
+        guard let item = statusItem else {
+            return
+        }
+
+        NSStatusBar.system.removeStatusItem(item)
+        statusItem = nil
+    }
+
+    private func ensureFloatingPanel(level: NSWindow.Level) {
+        let panel: NSPanel
+        let indicatorView: FloatingIndicatorView
+
+        if let existingPanel = floatingPanel, let existingView = floatingIndicatorView {
+            panel = existingPanel
+            indicatorView = existingView
+        } else {
+            panel = NSPanel(
+                contentRect: NSRect(x: 120, y: 120, width: 46, height: 46),
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = true
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            panel.hidesOnDeactivate = false
+            panel.isMovableByWindowBackground = true
+
+            indicatorView = FloatingIndicatorView(frame: NSRect(x: 0, y: 0, width: 46, height: 46))
+            indicatorView.clickHandler = { [weak self, weak indicatorView] in
+                guard let self, let indicatorView else {
+                    return
+                }
+                let location = NSPoint(x: indicatorView.bounds.midX, y: indicatorView.bounds.midY)
+                self.menu.popUp(positioning: nil, at: location, in: indicatorView)
+            }
+            panel.contentView = indicatorView
+
+            floatingPanel = panel
+            floatingIndicatorView = indicatorView
+        }
+
+        panel.level = level
+        panel.orderFrontRegardless()
+        panel.collectionBehavior = level == .statusBar
+            ? [.canJoinAllSpaces, .fullScreenAuxiliary]
+            : [.moveToActiveSpace, .fullScreenAuxiliary]
+        indicatorView.toolTip = "CX Task Light"
+    }
+
+    private func destroyFloatingPanel() {
+        floatingPanel?.close()
+        floatingPanel = nil
+        floatingIndicatorView = nil
+    }
+
+    private func loadDisplayMode() -> DisplayMode {
+        guard
+            let data = try? Data(contentsOf: preferencesURL),
+            let preferences = try? JSONDecoder().decode(DisplayPreferences.self, from: data),
+            let mode = DisplayMode(rawValue: preferences.display_mode)
+        else {
+            return .menuBar
+        }
+
+        return mode
+    }
+
+    private func saveDisplayMode(_ mode: DisplayMode) {
+        let preferences = DisplayPreferences(display_mode: mode.rawValue)
+        guard let data = try? JSONEncoder().encode(preferences) else {
+            return
+        }
+
+        try? data.write(to: preferencesURL, options: [.atomic])
+    }
+
     private func isCodexRunning() -> Bool {
-        return commandSucceeded("/usr/bin/pgrep", arguments: ["-x", "Codex"]) ||
-            commandSucceeded("/usr/bin/pgrep", arguments: ["-x", "codex"])
+        commandSucceeded("/usr/bin/pgrep", arguments: ["-x", "Codex"])
+            || commandSucceeded("/usr/bin/pgrep", arguments: ["-x", "codex"])
     }
 
     private func commandSucceeded(_ launchPath: String, arguments: [String]) -> Bool {
