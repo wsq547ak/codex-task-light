@@ -78,9 +78,41 @@
 - `src/traffic_light_hook.py`：状态判定逻辑
 - `assets/CodexTrafficLight.swift`：菜单栏程序源码
 - `scripts/build_menubar_app.sh`：构建菜单栏程序
+- `scripts/build_pkg_release.sh`：构建 `.pkg` 安装包
+- `scripts/install_from_pkg.sh`：`.pkg` 安装后的免编译安装脚本
 - `scripts/ensure_cx_running.sh`：确保 `Codex` 启动时自动拉起 `CX`
+- `packaging/postinstall`：`.pkg` 安装后的自动执行脚本
 - `assets/com.scott.codex-task-light.monitor.plist`：LaunchAgent 配置
 - `tests/test_hook_logic.py`：状态逻辑测试
+
+## 直接安装版
+
+如果你不是要改源码，而是只想安装使用，最简单的方式是直接安装 `release/` 目录里的 `.pkg` 文件。
+
+安装流程：
+
+1. 双击 `release/codex-task-light-YYYYMMDD-HHMMSS.pkg`
+2. 按安装向导完成安装
+3. 安装完成后打开 `Codex`
+4. 在 `Codex` 里执行一次 `/hooks`
+5. trust 指向下面这个路径的 hook：
+
+```text
+/Applications/codex-task-light/scripts/hook_entry.py
+```
+
+安装包会自动完成这些事情：
+
+- 把项目安装到 `/Applications/codex-task-light`
+- 写入 `~/.codex/hooks.json`
+- 写入 `~/Library/LaunchAgents/com.scott.codex-task-light.monitor.plist`
+- 重载自动启动监视器
+- 启动 `CX`
+
+注意：
+
+- `pkg` 可以省掉几乎所有命令行安装步骤
+- 但 `Codex` 对非托管 hooks 的 `trust` 仍然需要你在 `/hooks` 里手动确认一次
 
 ## 环境要求
 
@@ -123,6 +155,26 @@ cd codex-task-light
 ```
 
 然后把指向当前仓库中 `scripts/hook_entry.py` 的 hook 项设为 `trust`。
+
+### 2.1 构建发布版安装包
+
+如果你想给别人一个“直接双击安装”的版本，可以执行：
+
+```bash
+./scripts/build_pkg_release.sh
+```
+
+生成结果会放到：
+
+```bash
+./release/codex-task-light-YYYYMMDD-HHMMSS.pkg
+```
+
+这个安装包会把程序安装到：
+
+```bash
+/Applications/codex-task-light
+```
 
 ### 3. 手动安装
 

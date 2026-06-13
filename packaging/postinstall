@@ -1,0 +1,22 @@
+#!/bin/zsh
+set -euo pipefail
+
+TARGET_USER=$(stat -f%Su /dev/console)
+if [[ -z "$TARGET_USER" || "$TARGET_USER" == "root" ]]; then
+  exit 0
+fi
+
+REPO_ROOT="/Applications/codex-task-light"
+"$REPO_ROOT/scripts/install_from_pkg.sh" "$TARGET_USER"
+
+cat <<EOF
+
+Codex Task Light has been installed.
+
+Next step in Codex:
+1. Run /hooks
+2. Trust every hook entry that points to:
+   $REPO_ROOT/scripts/hook_entry.py
+
+After trust is granted, CX will update colors from Codex task events.
+EOF
