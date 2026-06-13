@@ -72,6 +72,39 @@ class DeriveStatusTests(unittest.TestCase):
         self.assertEqual(status["color"], "yellow")
         self.assertEqual(status["label"], "Task in progress")
 
+    def test_tool_message_with_error_word_does_not_set_error(self) -> None:
+        status = derive_status(
+            {
+                "hook_event_name": "PostToolUse",
+                "session_id": "session-1",
+                "tool_response": {
+                    "exit_code": 0,
+                    "message": "Search result mentions an error handling article.",
+                    "stderr": "non-fatal diagnostic text",
+                },
+            }
+        )
+
+        self.assertEqual(status["color"], "yellow")
+        self.assertEqual(status["label"], "Task in progress")
+
+    def test_structured_error_object_sets_error(self) -> None:
+        status = derive_status(
+            {
+                "hook_event_name": "PostToolUse",
+                "session_id": "session-1",
+                "tool_response": {
+                    "error": {
+                        "code": "EFAIL",
+                        "message": "Tool failed",
+                    }
+                },
+            }
+        )
+
+        self.assertEqual(status["color"], "red")
+        self.assertEqual(status["label"], "Error")
+
     def test_user_prompt_submit_sets_in_progress(self) -> None:
         status = derive_status(
             {

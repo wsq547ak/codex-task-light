@@ -21,18 +21,14 @@ def _tool_failed(tool_response: Any) -> bool:
         if isinstance(exit_code, int) and exit_code != 0:
             return True
 
-        for key in ("error", "stderr", "message"):
+        for key in ("success", "ok"):
             value = tool_response.get(key)
-            if isinstance(value, str) and value.strip():
-                lowered = value.lower()
-                if "error" in lowered or "failed" in lowered or "fatal" in lowered:
-                    return True
+            if isinstance(value, bool) and value is False:
+                return True
 
-    if isinstance(tool_response, str):
-        lowered = tool_response.lower()
-        return "exit code: 0" not in lowered and any(
-            token in lowered for token in ("error", "failed", "fatal", "permission denied")
-        )
+        error_value = tool_response.get("error")
+        if isinstance(error_value, dict) and error_value:
+            return True
 
     return False
 
